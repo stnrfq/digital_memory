@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:memoryhome/features/profile/pages/edit_profile_page.dart';
 
 import '../widgets/profile_header.dart';
 import '../widgets/profile_user_card.dart';
@@ -88,7 +89,14 @@ class ProfilePage extends StatelessWidget {
 
               // User Card
               ProfileUserCard(
-                onEdit: () => _showComingSoon(context, 'Edit Profil'),
+                onEdit: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EditProfilePage(),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 18),

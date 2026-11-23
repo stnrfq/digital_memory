@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:memoryhome/core/widgets/app_brand_header.dart';
+import 'package:memoryhome/features/auth/register/pages/register_success_page.dart';
 import 'package:memoryhome/features/auth/services/auth_service.dart';
+import 'package:memoryhome/features/navigation/pages/main_navigation_page.dart';
+import 'package:memoryhome/providers/auth_providers.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../widgets/register_form_field.dart';
 import '../widgets/register_bottom_action.dart';
 import 'terms_page.dart';
 import 'privacy_page.dart';
-
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -104,98 +107,103 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _register() async {
-  // Validasi seluruh field
-  final isFormValid = _formKey.currentState!.validate();
+    // Validasi seluruh field
+    final isFormValid = _formKey.currentState!.validate();
 
-  if (!isFormValid) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Silakan lengkapi data pendaftaran terlebih dahulu.',
+    if (!isFormValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan lengkapi data pendaftaran terlebih dahulu.'),
         ),
-      ),
-    );
-    return;
-  }
+      );
+      return;
+    }
 
-  // Validasi persetujuan
-  if (!_isAgreed) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Silakan setujui Syarat Penggunaan dan Kebijakan Privasi.',
-        ),
-      ),
-    );
-    return;
-  }
-
-  // Hindari request ganda
-  if (_isLoading) return;
-
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    // Kirim data ke API Register
-    final user = await _authService.register(
-      namaLengkap: _nameController.text.trim(),
-      username: _usernameController.text.trim(),
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    // Registrasi berhasil
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          icon: const Icon(
-            Icons.check_circle_outline_rounded,
-            color: Colors.green,
-            size: 48,
-          ),
-          title: const Text('Registrasi Berhasil'),
+    // Validasi persetujuan
+    if (!_isAgreed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
           content: Text(
-            'Selamat datang, ${user.namaLengkap}! '
-            'Akun kamu berhasil dibuat. Silakan login untuk melanjutkan.',
+            'Silakan setujui Syarat Penggunaan dan Kebijakan Privasi.',
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext); // Tutup dialog
-                Navigator.pop(context); // Kembali ke halaman login
-              },
-              child: const Text('Login Sekarang'),
-            ),
-          ],
-        );
-      },
-    );
-  } catch (e) {
-    if (!mounted) return;
-
-    // Tampilkan error dari API
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          e.toString().replaceFirst('Exception: ', ''),
         ),
-        backgroundColor: Colors.red,
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+      );
+      return;
+    }
+
+    // Hindari request ganda
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Kirim data ke API Register
+      final user = await _authService.register(
+        namaLengkap: _nameController.text.trim(),
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      // =========================
+      // REGISTRASI BERHASIL
+      // TAMPILKAN SUCCESS PAGE
+      // =========================
+
+      if (!mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RegisterSuccessPage(
+            nama: user.namaLengkap,
+            onContinue: () async {
+              try {
+                // Login otomatis setelah user menekan tombol di success page
+                final authProvider = Provider.of<AuthProvider>(
+                  context,
+                  listen: false,
+                );
+
+                await authProvider.login(
+                  identifier: _usernameController.text.trim(),
+                  password: _passwordController.text,
+                );
+
+                if (!mounted) return;
+
+                // Jika login berhasil, masuk ke Home
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MainNavigationPage(),
+                  ),
+                  (route) => false,
+                );
+              } catch (e) {
+                if (!mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(e.toString().replaceFirst('Exception: ', '')),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-}
 
   void _openTerms() {
     Navigator.push(

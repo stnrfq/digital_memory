@@ -1,13 +1,29 @@
-
 import 'package:dio/dio.dart';
+
 import '../models/user_model.dart';
+import '../models/auth_session_model.dart';
 
 class AuthService {
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 10),
+    ),
+  );
 
-  // Ganti IP sesuai alamat IP laptop/server kamu
-  // Jika menggunakan emulator Android, localhost tidak bisa digunakan langsung.
-  static const String baseUrl = 'http://192.168.1.14/digital_memory_api';
+  static const String baseUrl = 'http://10.0.167.195/digital_memory_api';
+
+  // =========================
+  // HELPER ERROR RESPONSE
+  // =========================
+  String _getErrorMessage(dynamic data, String fallback) {
+    if (data is Map && data['message'] != null) {
+      return data['message'].toString();
+    }
+
+    return fallback;
+  }
 
   // =========================
   // REGISTER
@@ -27,67 +43,112 @@ class AuthService {
           'email': email,
           'password': password,
         },
-        options: Options(
-          contentType: Headers.jsonContentType,
-        ),
       );
 
-      final responseData = response.data;
+      final data = response.data;
 
-      if (responseData['success'] == true) {
-        return UserModel.fromJson(responseData['data']);
+      if (data is Map && data['success'] == true) {
+        return UserModel.fromJson(data['data']);
+      }
+
+      throw Exception(_getErrorMessage(data, 'Registrasi gagal'));
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        throw Exception('Server terlalu lama merespons');
       }
 
       throw Exception(
-        responseData['message'] ?? 'Registrasi gagal',
+        _getErrorMessage(e.response?.data, 'Tidak dapat terhubung ke server'),
       );
-    } on DioException catch (e) {
-      final data = e.response?.data;
-
-      if (data is Map && data['message'] != null) {
-        throw Exception(data['message']);
-      }
-
-      throw Exception('Tidak dapat terhubung ke server');
     }
   }
 
   // =========================
   // LOGIN
   // =========================
-  Future<UserModel> login({
+  Future<AuthSessionModel> login({
     required String identifier,
     required String password,
   }) async {
     try {
       final response = await _dio.post(
         "$baseUrl/login.php",
-        data: {
-          'identifier': identifier,
-          'password': password,
-        },
-        options: Options(
-          contentType: Headers.jsonContentType,
-        ),
+        data: {'identifier': identifier, 'password': password},
       );
 
-      final responseData = response.data;
+      final data = response.data;
 
-      if (responseData['success'] == true) {
-        return UserModel.fromJson(responseData['data']);
+      if (data is Map && data['success'] == true) {
+        return AuthSessionModel.fromJson(Map<String, dynamic>.from(data));
+      }
+
+      throw Exception(_getErrorMessage(data, 'Login gagal'));
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        throw Exception('Server terlalu lama merespons');
       }
 
       throw Exception(
-        responseData['message'] ?? 'Login gagal',
+        _getErrorMessage(
+          e.response?.data,
+          'Username/email atau password salah',
+        ),
       );
-    } on DioException catch (e) {
-      final data = e.response?.data;
+    }
+  }
 
-      if (data is Map && data['message'] != null) {
-        throw Exception(data['message']);
+  // =========================
+  // CHECK SESSION
+  // =========================
+  Future<UserModel> checkSession(String token) async {
+    try {
+      final response = await _dio.post(
+        "$baseUrl/check_session.php",
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      final data = response.data;
+
+      if (data is Map && data['success'] == true && data['valid'] == true) {
+        return UserModel.fromJson(data['data']);
       }
 
-      throw Exception('Tidak dapat terhubung ke server');
+      throw Exception(_getErrorMessage(data, 'Sesi tidak valid'));
+    } on DioException catch (e) {
+      throw Exception(
+        _getErrorMessage(e.response?.data, 'Gagal memvalidasi sesi'),
+      );
+    }
+  }
+
+  // =========================
+  // LOGOUT
+  // =========================
+  Future<void> logout(String token) async {
+    try {
+      final response = await _dio.post(
+        "$baseUrl/logout.php",
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      final data = response.data;
+
+      if (data is Map && data['success'] == true) {
+        return;
+      }
+
+      throw Exception(_getErrorMessage(data, 'Logout gagal'));
+    } on DioException catch (e) {
+      throw Exception(
+        _getErrorMessage(
+          e.response?.data,
+          'Tidak dapat menghubungi server saat logout',
+        ),
+      );
     }
   }
 }

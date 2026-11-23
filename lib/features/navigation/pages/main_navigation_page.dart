@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:memoryhome/core/widgets/bottom_nav_bar.dart';
 import 'package:memoryhome/features/home/pages/home_page.dart';
 import 'package:memoryhome/features/profile/pages/profile_page.dart';
+import 'package:memoryhome/features/auth/login/pages/login_page.dart';
+import 'package:memoryhome/providers/auth_providers.dart';
 
 class MainNavigationPage extends StatefulWidget {
   const MainNavigationPage({super.key});
@@ -14,20 +17,35 @@ class MainNavigationPage extends StatefulWidget {
 class _MainNavigationPageState extends State<MainNavigationPage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = const [
-    HomePage(),
-    _TabPlaceholder(
+  late final List<Widget> _pages = [
+    const HomePage(),
+    const _TabPlaceholder(
       title: 'Barang',
       description: 'Daftar barang yang kamu simpan di rumah.',
       icon: Icons.inventory_2_outlined,
     ),
-    _TabPlaceholder(
+    const _TabPlaceholder(
       title: 'Ruangan',
       description: 'Kelola ruangan yang ada di rumahmu.',
       icon: Icons.door_front_door_outlined,
     ),
-    ProfilePage(),
+    ProfilePage(onLogout: _handleLogout),
   ];
+
+  // LOGOUT
+  Future<void> _handleLogout() async {
+    // Hapus session dari Provider dan SharedPreferences
+    await context.read<AuthProvider>().logout();
+
+    if (!mounted) return;
+
+    // Kembali ke Login dan hapus seluruh navigation stack
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (route) => false,
+    );
+  }
 
   void _onTabSelected(int index) {
     setState(() {

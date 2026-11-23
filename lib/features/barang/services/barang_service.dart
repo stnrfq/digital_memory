@@ -7,7 +7,7 @@ import '../models/barang_model.dart';
 class BarangService {
   final Dio _dio = Dio();
 
-  static const String baseUrl = 'http://192.168.1.14/digital_memory_api/';
+  static const String baseUrl = 'http://10.0.167.195/digital_memory_api/';
 
   // Mengubah respons API menjadi Map
   Map<String, dynamic> parseResponse(dynamic data) {

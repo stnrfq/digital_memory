@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:memoryhome/core/utils/app_messeger.dart';
 import 'package:memoryhome/features/navigation/pages/main_navigation_page.dart';
 import 'package:memoryhome/providers/auth_providers.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +23,8 @@ class _LoginPageState extends State<LoginPage> {
   final passwordController = TextEditingController();
 
   Future<void> login() async {
+    debugPrint('LOGIN: tombol ditekan');
+
     if (emailController.text.trim().isEmpty ||
         passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -33,34 +36,39 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      // [Provider] Mengambil AuthProvider tanpa membuat halaman rebuild
+      debugPrint('LOGIN: memulai request');
+
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // [Provider] Proses login dan penyimpanan session
       await authProvider.login(
         identifier: emailController.text.trim(),
         password: passwordController.text,
       );
 
+      debugPrint('LOGIN: berhasil');
+
       if (!mounted) return;
 
-      // Navigasi ke Home setelah login berhasil
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const MainNavigationPage()),
         (route) => false,
       );
     } catch (e) {
-      if (!mounted) return;
+      debugPrint('LOGIN ERROR: $e');
 
       final errorMessage = e.toString().replaceFirst('Exception: ', '');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
+      appMessengerKey.currentState
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
     }
   }
 
